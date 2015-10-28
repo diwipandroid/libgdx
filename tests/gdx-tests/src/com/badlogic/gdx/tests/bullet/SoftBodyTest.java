@@ -30,6 +30,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.FloatAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
+import com.badlogic.gdx.graphics.g3d.model.MeshPart;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Matrix4;
@@ -58,7 +59,7 @@ public class SoftBodyTest extends BaseBulletTest {
 	public BulletWorld createWorld () {
 		btDefaultCollisionConfiguration collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
 		btCollisionDispatcher dispatcher = new btCollisionDispatcher(collisionConfiguration);
-		btAxisSweep3 broadphase = new btAxisSweep3(Vector3.tmp.set(-1000, -1000, -1000), Vector3.tmp2.set(1000, 1000, 1000), 1024);
+		btAxisSweep3 broadphase = new btAxisSweep3(tmpV1.set(-1000, -1000, -1000), tmpV2.set(1000, 1000, 1000), 1024);
 		btSequentialImpulseConstraintSolver solver = new btSequentialImpulseConstraintSolver();
 		btSoftRigidDynamicsWorld dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver,
 			collisionConfiguration);
@@ -116,8 +117,14 @@ public class SoftBodyTest extends BaseBulletTest {
 		mesh.setVertices(verts);
 		texture = new Texture(Gdx.files.internal("data/badlogic.jpg"));
 
-		model = ModelBuilder.createFromMesh(mesh, GL20.GL_TRIANGLES, new Material(TextureAttribute.createDiffuse(texture),
-			ColorAttribute.createSpecular(Color.WHITE), FloatAttribute.createShininess(64f), IntAttribute.createCullFace(0)));
+		ModelBuilder builder = new ModelBuilder();
+		builder.begin();
+		builder.part(
+			new MeshPart("", mesh, 0, mesh.getNumIndices(), GL20.GL_TRIANGLES),
+			new Material(TextureAttribute.createDiffuse(texture), ColorAttribute.createSpecular(Color.WHITE), FloatAttribute
+				.createShininess(64f), IntAttribute.createCullFace(0)));
+		model = builder.end();
+
 		instance = new ModelInstance(model);
 		world.add(new BulletEntity(instance, null));
 	}

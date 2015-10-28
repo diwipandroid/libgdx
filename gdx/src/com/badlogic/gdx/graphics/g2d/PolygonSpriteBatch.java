@@ -16,7 +16,8 @@
 
 package com.badlogic.gdx.graphics.g2d;
 
-import static com.badlogic.gdx.graphics.g2d.Sprite.*;
+import static com.badlogic.gdx.graphics.g2d.Sprite.SPRITE_SIZE;
+import static com.badlogic.gdx.graphics.g2d.Sprite.VERTEX_SIZE;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
@@ -27,6 +28,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Affine2;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.NumberUtils;
@@ -113,7 +115,11 @@ public class PolygonSpriteBatch implements Batch {
 		// 32767 is max index, so 32767 / 3 - (32767 / 3 % 3) = 10920.
 		if (size > 10920) throw new IllegalArgumentException("Can't have more than 10920 triangles per batch: " + size);
 
-		mesh = new Mesh(VertexDataType.VertexArray, false, size, size * 3, new VertexAttribute(Usage.Position, 2,
+		Mesh.VertexDataType vertexDataType = Mesh.VertexDataType.VertexArray;
+		if (Gdx.gl30 != null) {
+			vertexDataType = VertexDataType.VertexBufferObjectWithVAO;
+		}
+		mesh = new Mesh(vertexDataType, false, size, size * 3, new VertexAttribute(Usage.Position, 2,
 			ShaderProgram.POSITION_ATTRIBUTE), new VertexAttribute(Usage.ColorPacked, 4, ShaderProgram.COLOR_ATTRIBUTE),
 			new VertexAttribute(Usage.TextureCoordinates, 2, ShaderProgram.TEXCOORD_ATTRIBUTE + "0"));
 
@@ -129,10 +135,7 @@ public class PolygonSpriteBatch implements Batch {
 		projectionMatrix.setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 	}
 
-	/** Sets up the PolygonSpriteBatch for drawing. This will disable depth buffer writting. It enables blending and texturing. If
-	 * you have more texture units enabled than the first one you have to disable them before calling this. Uses a screen
-	 * coordinate system by default where everything is given in pixels. You can specify your own projection and modelview matrices
-	 * via {@link #setProjectionMatrix(Matrix4)} and {@link #setTransformMatrix(Matrix4)}. */
+	@Override
 	public void begin () {
 		if (drawing) throw new IllegalStateException("PolygonSpriteBatch.end must be called before begin.");
 		renderCalls = 0;
@@ -147,8 +150,7 @@ public class PolygonSpriteBatch implements Batch {
 		drawing = true;
 	}
 
-	/** Finishes off rendering. Enables depth writes, disables blending and texturing. Must always be called after a call to
-	 * {@link #begin()} */
+	@Override
 	public void end () {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before end.");
 		if (vertexIndex > 0) flush();
@@ -165,24 +167,23 @@ public class PolygonSpriteBatch implements Batch {
 			shader.end();
 	}
 
-	/** Sets the color used to tint images when they are added to the PolygonSpriteBatch. Default is {@link Color#WHITE}. */
+	@Override
 	public void setColor (Color tint) {
 		color = tint.toFloatBits();
 	}
 
-	/** @see #setColor(Color) */
+	@Override
 	public void setColor (float r, float g, float b, float a) {
 		int intBits = (int)(255 * a) << 24 | (int)(255 * b) << 16 | (int)(255 * g) << 8 | (int)(255 * r);
 		color = NumberUtils.intToFloatColor(intBits);
 	}
 
-	/** @see #setColor(Color)
-	 * @see Color#toFloatBits() */
+	@Override
 	public void setColor (float color) {
 		this.color = color;
 	}
 
-	/** @return the rendering color of this PolygonSpriteBatch. Manipulating the returned instance has no effect. */
+	@Override
 	public Color getColor () {
 		int intBits = NumberUtils.floatToIntColor(color);
 		Color color = this.tempColor;
@@ -190,6 +191,11 @@ public class PolygonSpriteBatch implements Batch {
 		color.g = ((intBits >>> 8) & 0xff) / 255f;
 		color.b = ((intBits >>> 16) & 0xff) / 255f;
 		color.a = ((intBits >>> 24) & 0xff) / 255f;
+		return color;
+	}
+
+	@Override
+	public float getPackedColor () {
 		return color;
 	}
 
@@ -351,6 +357,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex += verticesCount;
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y, float originX, float originY, float width, float height, float scaleX,
 		float scaleY, float rotation, int srcX, int srcY, int srcWidth, int srcHeight, boolean flipX, boolean flipY) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
@@ -492,6 +499,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y, float width, float height, int srcX, int srcY, int srcWidth,
 		int srcHeight, boolean flipX, boolean flipY) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
@@ -561,6 +569,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y, int srcX, int srcY, int srcWidth, int srcHeight) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
 
@@ -617,6 +626,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y, float width, float height, float u, float v, float u2, float v2) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
 
@@ -669,10 +679,12 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y) {
 		draw(texture, x, y, texture.getWidth(), texture.getHeight());
 	}
 
+	@Override
 	public void draw (Texture texture, float x, float y, float width, float height) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
 
@@ -729,6 +741,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (Texture texture, float[] spriteVertices, int offset, int count) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
 
@@ -758,10 +771,12 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex += count;
 	}
 
+	@Override
 	public void draw (TextureRegion region, float x, float y) {
 		draw(region, x, y, region.getRegionWidth(), region.getRegionHeight());
 	}
 
+	@Override
 	public void draw (TextureRegion region, float x, float y, float width, float height) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
 
@@ -819,6 +834,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (TextureRegion region, float x, float y, float originX, float originY, float width, float height,
 		float scaleX, float scaleY, float rotation) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
@@ -949,6 +965,7 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
+	@Override
 	public void draw (TextureRegion region, float x, float y, float originX, float originY, float width, float height,
 		float scaleX, float scaleY, float rotation, boolean clockwise) {
 		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
@@ -1095,7 +1112,73 @@ public class PolygonSpriteBatch implements Batch {
 		this.vertexIndex = idx;
 	}
 
-	/** Causes any pending sprites to be rendered, without ending the PolygonSpriteBatch. */
+	@Override
+	public void draw (TextureRegion region, float width, float height, Affine2 transform) {
+		if (!drawing) throw new IllegalStateException("PolygonSpriteBatch.begin must be called before draw.");
+
+		final short[] triangles = this.triangles;
+		final float[] vertices = this.vertices;
+
+		Texture texture = region.texture;
+		if (texture != lastTexture)
+			switchTexture(texture);
+		else if (triangleIndex + 6 > triangles.length || vertexIndex + SPRITE_SIZE > vertices.length) //
+			flush();
+
+		int triangleIndex = this.triangleIndex;
+		final int startVertex = vertexIndex / VERTEX_SIZE;
+		triangles[triangleIndex++] = (short)startVertex;
+		triangles[triangleIndex++] = (short)(startVertex + 1);
+		triangles[triangleIndex++] = (short)(startVertex + 2);
+		triangles[triangleIndex++] = (short)(startVertex + 2);
+		triangles[triangleIndex++] = (short)(startVertex + 3);
+		triangles[triangleIndex++] = (short)startVertex;
+		this.triangleIndex = triangleIndex;
+
+		// construct corner points
+		float x1 = transform.m02;
+		float y1 = transform.m12;
+		float x2 = transform.m01 * height + transform.m02;
+		float y2 = transform.m11 * height + transform.m12;
+		float x3 = transform.m00 * width + transform.m01 * height + transform.m02;
+		float y3 = transform.m10 * width + transform.m11 * height + transform.m12;
+		float x4 = transform.m00 * width + transform.m02;
+		float y4 = transform.m10 * width + transform.m12;
+
+		float u = region.u;
+		float v = region.v2;
+		float u2 = region.u2;
+		float v2 = region.v;
+
+		float color = this.color;
+		int idx = vertexIndex;
+		vertices[idx++] = x1;
+		vertices[idx++] = y1;
+		vertices[idx++] = color;
+		vertices[idx++] = u;
+		vertices[idx++] = v;
+
+		vertices[idx++] = x2;
+		vertices[idx++] = y2;
+		vertices[idx++] = color;
+		vertices[idx++] = u;
+		vertices[idx++] = v2;
+
+		vertices[idx++] = x3;
+		vertices[idx++] = y3;
+		vertices[idx++] = color;
+		vertices[idx++] = u2;
+		vertices[idx++] = v2;
+
+		vertices[idx++] = x4;
+		vertices[idx++] = y4;
+		vertices[idx++] = color;
+		vertices[idx++] = u2;
+		vertices[idx++] = v;
+		vertexIndex = idx;
+	}
+
+	@Override
 	public void flush () {
 		if (vertexIndex == 0) return;
 
@@ -1122,22 +1205,19 @@ public class PolygonSpriteBatch implements Batch {
 		triangleIndex = 0;
 	}
 
-	/** Disables blending for drawing sprites. Calling this within {@link #begin()}/{@link #end()} will flush the batch. */
+	@Override
 	public void disableBlending () {
 		flush();
 		blendingDisabled = true;
 	}
 
-	/** Enables blending for sprites. Calling this within {@link #begin()}/{@link #end()} will flush the batch. */
+	@Override
 	public void enableBlending () {
 		flush();
 		blendingDisabled = false;
 	}
 
-	/** Sets the blending function to be used when rendering sprites.
-	 * @param srcFunc the source function, e.g. GL11.GL_SRC_ALPHA. If set to -1, PolygonSpriteBatch won't change the blending
-	 *           function.
-	 * @param dstFunc the destination function, e.g. GL11.GL_ONE_MINUS_SRC_ALPHA */
+	@Override
 	public void setBlendFunction (int srcFunc, int dstFunc) {
 		if (blendSrcFunc == srcFunc && blendDstFunc == dstFunc) return;
 		flush();
@@ -1145,40 +1225,40 @@ public class PolygonSpriteBatch implements Batch {
 		blendDstFunc = dstFunc;
 	}
 
+	@Override
 	public int getBlendSrcFunc () {
 		return blendSrcFunc;
 	}
 
+	@Override
 	public int getBlendDstFunc () {
 		return blendDstFunc;
 	}
 
-	/** Disposes all resources associated with this PolygonSpriteBatch. */
+	@Override
 	public void dispose () {
 		mesh.dispose();
 		if (ownsShader && shader != null) shader.dispose();
 	}
 
-	/** Returns the current projection matrix. Changing this within {@link #begin()}/{@link #end()} results in undefined behaviour. */
+	@Override
 	public Matrix4 getProjectionMatrix () {
 		return projectionMatrix;
 	}
 
-	/** Returns the current transform matrix. Changing this within {@link #begin()}/{@link #end()} results in undefined behaviour. */
+	@Override
 	public Matrix4 getTransformMatrix () {
 		return transformMatrix;
 	}
 
-	/** Sets the projection matrix to be used by this PolygonSpriteBatch. If this is called inside a {@link #begin()}/{@link #end()}
-	 * block, the current batch is flushed to the gpu. */
+	@Override
 	public void setProjectionMatrix (Matrix4 projection) {
 		if (drawing) flush();
 		projectionMatrix.set(projection);
 		if (drawing) setupMatrices();
 	}
 
-	/** Sets the transform matrix to be used by this PolygonSpriteBatch. If this is called inside a {@link #begin()}/{@link #end()}
-	 * block, the current batch is flushed to the gpu. */
+	@Override
 	public void setTransformMatrix (Matrix4 transform) {
 		if (drawing) flush();
 		transformMatrix.set(transform);
@@ -1203,7 +1283,7 @@ public class PolygonSpriteBatch implements Batch {
 		invTexHeight = 1.0f / texture.getHeight();
 	}
 
-	/** @see Batch#setShader(ShaderProgram) */
+	@Override
 	public void setShader (ShaderProgram shader) {
 		if (drawing) {
 			flush();
@@ -1222,8 +1302,21 @@ public class PolygonSpriteBatch implements Batch {
 		}
 	}
 
-	/** @return whether blending for sprites is enabled */
+	@Override
+	public ShaderProgram getShader () {
+		if (customShader == null) {
+			return shader;
+		}
+		return customShader;
+	}
+	
+	@Override
 	public boolean isBlendingEnabled () {
 		return !blendingDisabled;
+	}
+
+	@Override
+	public boolean isDrawing () {
+		return drawing;
 	}
 }

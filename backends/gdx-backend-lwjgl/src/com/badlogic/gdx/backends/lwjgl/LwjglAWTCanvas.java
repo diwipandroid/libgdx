@@ -1,12 +1,12 @@
 /*******************************************************************************
  * Copyright 2011 See AUTHORS file.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,16 +17,21 @@
 package com.badlogic.gdx.backends.lwjgl;
 
 import java.awt.Canvas;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.SwingUtilities;
+
 import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.AWTGLCanvas;
+import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.PixelFormat;
 
 import com.badlogic.gdx.Application;
@@ -39,7 +44,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.LifecycleListener;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.Preferences;
-import com.badlogic.gdx.backends.openal.OpenALAudio;
+import com.badlogic.gdx.backends.lwjgl.audio.OpenALAudio;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.GdxRuntimeException;
@@ -56,20 +61,31 @@ public class LwjglAWTCanvas implements Application {
 	final LwjglNet net;
 	final ApplicationListener listener;
 	final AWTGLCanvas canvas;
-	final List<Runnable> runnables = new ArrayList();
-	final List<Runnable> executedRunnables = new ArrayList();
+	final Array<Runnable> runnables = new Array();
+	final Array<Runnable> executedRunnables = new Array();
 	final Array<LifecycleListener> lifecycleListeners = new Array<LifecycleListener>();
 	boolean running = true;
 	int lastWidth;
 	int lastHeight;
 	int logLevel = LOG_INFO;
+	final String logTag = "LwjglAWTCanvas";
 	private Cursor cursor;
 
-	public LwjglAWTCanvas (ApplicationListener listener, boolean useGL2) {
-		this(listener, useGL2, null);
+	public LwjglAWTCanvas (ApplicationListener listener) {
+		this(listener, null, null);
 	}
 
-	public LwjglAWTCanvas (ApplicationListener listener, boolean useGL2, LwjglAWTCanvas sharedContextCanvas) {
+	public LwjglAWTCanvas (ApplicationListener listener, LwjglAWTCanvas sharedContextCanvas) {
+		this(listener, null, sharedContextCanvas);
+	}
+
+	public LwjglAWTCanvas (ApplicationListener listener, LwjglApplicationConfiguration config) {
+		this(listener, null, null);
+	}
+
+	public LwjglAWTCanvas (ApplicationListener listener, LwjglApplicationConfiguration config, LwjglAWTCanvas sharedContextCanvas) {
+		if (config == null) config = new LwjglApplicationConfiguration();
+
 		LwjglNativesLoader.load();
 
 		AWTGLCanvas sharedDrawable = sharedContextCanvas != null ? sharedContextCanvas.canvas : null;
@@ -78,6 +94,7 @@ public class LwjglAWTCanvas implements Application {
 				sharedDrawable) {
 				private final Dimension minSize = new Dimension(0, 0);
 
+				@Override
 				public Dimension getMinimumSize () {
 					return minSize;
 				}
@@ -91,7 +108,6 @@ public class LwjglAWTCanvas implements Application {
 				public void paintGL () {
 					try {
 						LwjglAWTCanvas.this.render();
-						swapBuffers();
 						repaint();
 					} catch (LWJGLException ex) {
 						throw new GdxRuntimeException(ex);
@@ -102,24 +118,36 @@ public class LwjglAWTCanvas implements Application {
 			throw new GdxRuntimeException(ex);
 		}
 
-		graphics = new LwjglGraphics(canvas) {
+		graphics = new LwjglGraphics(canvas, config) {
+			@Override
 			public void setTitle (String title) {
 				super.setTitle(title);
 				LwjglAWTCanvas.this.setTitle(title);
 			}
 
+			@Override
 			public boolean setDisplayMode (int width, int height, boolean fullscreen) {
 				if (!super.setDisplayMode(width, height, fullscreen)) return false;
 				if (!fullscreen) LwjglAWTCanvas.this.setDisplayMode(width, height);
 				return true;
 			}
 
+			@Override
 			public boolean setDisplayMode (DisplayMode displayMode) {
 				if (!super.setDisplayMode(displayMode)) return false;
 				LwjglAWTCanvas.this.setDisplayMode(displayMode.width, displayMode.height);
 				return true;
 			}
+
+			public boolean shouldRender () {
+				synchronized (this) {
+					boolean rq = requestRendering;
+					requestRendering = false;
+					return rq || isContinuous;
+				}
+			}
 		};
+
 		if (!LwjglApplicationConfiguration.disableAudio && Gdx.audio == null) {
 			audio = new OpenALAudio();
 			Gdx.audio = audio;
@@ -138,7 +166,7 @@ public class LwjglAWTCanvas implements Application {
 		} else {
 			net = null;
 		}
-		input = new LwjglAWTInput(canvas);
+		input = new LwjglAWTInput(this);
 		this.listener = listener;
 
 		setGlobals();
@@ -206,7 +234,8 @@ public class LwjglAWTCanvas implements Application {
 	void create () {
 		try {
 			setGlobals();
-			graphics.initiateGLInstances();
+			graphics.initiateGL();
+			canvas.setVSyncEnabled(graphics.config.vSyncEnabled);
 			listener.create();
 			lastWidth = Math.max(1, graphics.getWidth());
 			lastHeight = Math.max(1, graphics.getHeight());
@@ -218,12 +247,13 @@ public class LwjglAWTCanvas implements Application {
 		}
 	}
 
-	void render () {
+	void render () throws LWJGLException {
 		if (!running) return;
-		
+
 		setGlobals();
 		canvas.setCursor(cursor);
-		graphics.updateTime();
+
+		boolean shouldRender = false;
 
 		int width = Math.max(1, graphics.getWidth());
 		int height = Math.max(1, graphics.getHeight());
@@ -233,29 +263,53 @@ public class LwjglAWTCanvas implements Application {
 			Gdx.gl.glViewport(0, 0, lastWidth, lastHeight);
 			resize(width, height);
 			listener.resize(width, height);
+			shouldRender = true;
 		}
 
-		synchronized (runnables) {
-			executedRunnables.clear();
-			executedRunnables.addAll(runnables);
-			runnables.clear();
+		if (executeRunnables()) shouldRender = true;
 
-			for (int i = 0; i < executedRunnables.size(); i++) {
-				try {
-					executedRunnables.get(i).run();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
-			}
-		}
+		// If one of the runnables set running to false, for example after an exit().
+		if (!running) return;
 
+		shouldRender |= graphics.shouldRender();
 		input.processEvents();
-		if (running) {
+		if (audio != null) audio.update();
+
+		if (shouldRender) {
+			graphics.updateTime();
+			graphics.frameId++;
 			listener.render();
-			if (audio != null) {
-				audio.update();
-			}
+			canvas.swapBuffers();
 		}
+
+		Display.sync(getFrameRate());
+	}
+
+	public boolean executeRunnables () {
+		synchronized (runnables) {
+			for (int i = runnables.size - 1; i >= 0; i--)
+				executedRunnables.addAll(runnables.get(i));
+			runnables.clear();
+		}
+		if (executedRunnables.size == 0) return false;
+		do
+			executedRunnables.pop().run();
+		while (executedRunnables.size > 0);
+		return true;
+	}
+
+	protected int getFrameRate () {
+		int frameRate = isActive() ? graphics.config.foregroundFPS : graphics.config.backgroundFPS;
+		if (frameRate == -1) frameRate = 10;
+		if (frameRate == 0) frameRate = graphics.config.backgroundFPS;
+		if (frameRate == 0) frameRate = 30;
+		return frameRate;
+	}
+
+	/** Returns true when the frame containing the canvas is the foreground window. */
+	public boolean isActive () {
+		Component root = SwingUtilities.getRoot(canvas);
+		return root instanceof Frame ? ((Frame)root).isActive() : true;
 	}
 
 	/** Called after {@link ApplicationListener} create and resize, but before the game loop iteration. */
@@ -275,6 +329,14 @@ public class LwjglAWTCanvas implements Application {
 		running = false;
 		setGlobals();
 		Array<LifecycleListener> listeners = lifecycleListeners;
+
+		// To allow destroying of OpenGL textures during disposal.
+		if (canvas.isDisplayable()) {
+			makeCurrent();
+		} else {
+			error(logTag, "OpenGL context destroyed before application listener has had a chance to dispose of textures.");
+		}
+
 		synchronized (listeners) {
 			for (LifecycleListener listener : listeners) {
 				listener.pause();
@@ -285,9 +347,9 @@ public class LwjglAWTCanvas implements Application {
 		listener.dispose();
 
 		Gdx.app = null;
-		
+
 		Gdx.graphics = null;
-		
+
 		if (audio != null) {
 			audio.dispose();
 			Gdx.audio = null;
@@ -296,7 +358,7 @@ public class LwjglAWTCanvas implements Application {
 		if (files != null) Gdx.files = null;
 
 		if (net != null) Gdx.net = null;
-		
+
 		stopped();
 	}
 
@@ -350,6 +412,7 @@ public class LwjglAWTCanvas implements Application {
 		}
 	}
 
+	@Override
 	public void log (String tag, String message) {
 		if (logLevel >= LOG_INFO) {
 			System.out.println(tag + ": " + message);
@@ -385,7 +448,7 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	@Override
-	public int getLogLevel() {
+	public int getLogLevel () {
 		return logLevel;
 	}
 

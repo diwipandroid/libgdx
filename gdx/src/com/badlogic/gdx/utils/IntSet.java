@@ -345,6 +345,7 @@ public class IntSet {
 	}
 
 	public void clear () {
+		if (size == 0) return;
 		int[] keyTable = this.keyTable;
 		for (int i = capacity + stashSize; i-- > 0;)
 			keyTable[i] = EMPTY;
@@ -381,7 +382,7 @@ public class IntSet {
 		throw new IllegalStateException("IntSet is empty.");
 	}
 
-	/** Increases the size of the backing array to acommodate the specified number of additional items. Useful before adding many
+	/** Increases the size of the backing array to accommodate the specified number of additional items. Useful before adding many
 	 * items to avoid multiple backing array resizes. */
 	public void ensureCapacity (int additionalCapacity) {
 		int sizeNeeded = size + additionalCapacity;
@@ -421,6 +422,23 @@ public class IntSet {
 	private int hash3 (int h) {
 		h *= PRIME3;
 		return (h ^ h >>> hashShift) & mask;
+	}
+
+	public int hashCode () {
+		int h = 0;
+		for (int i = 0, n = capacity + stashSize; i < n; i++)
+			if (keyTable[i] != EMPTY) h += keyTable[i];
+		return h;
+	}
+
+	public boolean equals (Object obj) {
+		if (!(obj instanceof IntSet)) return false;
+		IntSet other = (IntSet)obj;
+		if (other.size != size) return false;
+		if (other.hasZeroValue != hasZeroValue) return false;
+		for (int i = 0, n = capacity + stashSize; i < n; i++)
+			if (keyTable[i] != EMPTY && !other.contains(keyTable[i])) return false;
+		return true;
 	}
 
 	public String toString () {
@@ -472,15 +490,6 @@ public class IntSet {
 		IntSet set = new IntSet();
 		set.addAll(array);
 		return set;
-	}
-
-	static public class Entry<V> {
-		public int key;
-		public V value;
-
-		public String toString () {
-			return key + "=" + value;
-		}
 	}
 
 	static public class IntSetIterator {

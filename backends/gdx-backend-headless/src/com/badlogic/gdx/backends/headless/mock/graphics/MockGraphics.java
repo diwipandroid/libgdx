@@ -17,13 +17,16 @@
 package com.badlogic.gdx.backends.headless.mock.graphics;
 
 import com.badlogic.gdx.Graphics;
+import com.badlogic.gdx.graphics.Cursor;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
+import com.badlogic.gdx.graphics.Pixmap;
 
 /** The headless backend does its best to mock elements. This is intended to make code-sharing between
  * server and client as simple as possible.
  */
 public class MockGraphics implements Graphics {
+	long frameId = -1;
 	float deltaTime = 0;
 	long frameStart = 0;
 	int frames = 0;
@@ -53,6 +56,11 @@ public class MockGraphics implements Graphics {
 	@Override
 	public int getHeight() {
 		return 0;
+	}
+
+	@Override
+	public long getFrameId() {
+		return frameId;
 	}
 
 	@Override
@@ -176,6 +184,19 @@ public class MockGraphics implements Graphics {
 			frameStart = time;
 		}
 		frames++;
+	}
+
+	public void incrementFrameId () {
+		frameId++;
+	}
+	
+	@Override
+	public Cursor newCursor (Pixmap pixmap, int xHotspot, int yHotspot) {
+		return null;
+	}
+
+	@Override
+	public void setCursor (Cursor cursor) {
 	}
 
 }

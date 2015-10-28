@@ -26,9 +26,9 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.Ray;
-import com.badlogic.gdx.physics.bullet.collision.ClosestRayResultCallback;
 import com.badlogic.gdx.physics.bullet.collision.Collision;
 import com.badlogic.gdx.physics.bullet.collision.btCapsuleShape;
+import com.badlogic.gdx.physics.bullet.collision.ClosestRayResultCallback;
 import com.badlogic.gdx.physics.bullet.dynamics.btConeTwistConstraint;
 import com.badlogic.gdx.physics.bullet.dynamics.btConstraintSetting;
 import com.badlogic.gdx.physics.bullet.dynamics.btDynamicsWorld;
@@ -92,16 +92,16 @@ public class RayPickRagdollTest extends BaseBulletTest {
 		boolean result = false;
 		if (button == Buttons.LEFT) {
 			Ray ray = camera.getPickRay(screenX, screenY);
-			Vector3.tmp.set(ray.direction).scl(10f).add(ray.origin);
-			ClosestRayResultCallback cb = new ClosestRayResultCallback(ray.origin, Vector3.tmp);
-			world.collisionWorld.rayTest(ray.origin, Vector3.tmp, cb);
+			tmpV1.set(ray.direction).scl(10f).add(ray.origin);
+			ClosestRayResultCallback cb = new ClosestRayResultCallback(ray.origin, tmpV1);
+			world.collisionWorld.rayTest(ray.origin, tmpV1, cb);
 			if (cb.hasHit()) {
 				btRigidBody body = (btRigidBody)(cb.getCollisionObject());
 				if (body != null && !body.isStaticObject() && !body.isKinematicObject()) {
 					pickedBody = body;
 					body.setActivationState(Collision.DISABLE_DEACTIVATION);
 
-					tmpV.set(cb.getHitPointWorld().getFloats());
+					cb.getHitPointWorld(tmpV);
 					tmpV.mul(body.getCenterOfMassTransform().inv());
 
 					pickConstraint = new btPoint2PointConstraint(body, tmpV);
@@ -112,7 +112,7 @@ public class RayPickRagdollTest extends BaseBulletTest {
 
 					((btDynamicsWorld)world.collisionWorld).addConstraint(pickConstraint);
 
-					pickDistance = Vector3.tmp.sub(camera.position).len();
+					pickDistance = tmpV1.sub(camera.position).len();
 					result = true;
 				}
 			}
@@ -145,8 +145,8 @@ public class RayPickRagdollTest extends BaseBulletTest {
 		boolean result = false;
 		if (pickConstraint != null) {
 			Ray ray = camera.getPickRay(screenX, screenY);
-			Vector3.tmp.set(ray.direction).scl(pickDistance).add(camera.position);
-			pickConstraint.setPivotB(Vector3.tmp);
+			tmpV1.set(ray.direction).scl(pickDistance).add(camera.position);
+			pickConstraint.setPivotB(tmpV1);
 			result = true;
 		}
 		return result ? result : super.touchDragged(screenX, screenY, pointer);
@@ -172,13 +172,13 @@ public class RayPickRagdollTest extends BaseBulletTest {
 		btRigidBody rightupperleg = (btRigidBody)world.add("upperleg", x + 0.18f, y + 0.65f, z).body;
 		btRigidBody rightlowerleg = (btRigidBody)world.add("lowerleg", x + 0.18f, y + 0.2f, z).body;
 		btRigidBody leftupperarm = (btRigidBody)world.add("upperarm",
-			tmpM.setFromEulerAngles(PI2, 0, 0).trn(x - 0.35f, y + 1.45f, z)).body;
-		btRigidBody leftlowerarm = (btRigidBody)world.add("lowerarm", tmpM.setFromEulerAngles(PI2, 0, 0)
+			tmpM.setFromEulerAnglesRad(PI2, 0, 0).trn(x - 0.35f, y + 1.45f, z)).body;
+		btRigidBody leftlowerarm = (btRigidBody)world.add("lowerarm", tmpM.setFromEulerAnglesRad(PI2, 0, 0)
 			.trn(x - 0.7f, y + 1.45f, z)).body;
 		btRigidBody rightupperarm = (btRigidBody)world.add("upperarm",
-			tmpM.setFromEulerAngles(-PI2, 0, 0).trn(x + 0.35f, y + 1.45f, z)).body;
+			tmpM.setFromEulerAnglesRad(-PI2, 0, 0).trn(x + 0.35f, y + 1.45f, z)).body;
 		btRigidBody rightlowerarm = (btRigidBody)world.add("lowerarm",
-			tmpM.setFromEulerAngles(-PI2, 0, 0).trn(x + 0.7f, y + 1.45f, z)).body;
+			tmpM.setFromEulerAnglesRad(-PI2, 0, 0).trn(x + 0.7f, y + 1.45f, z)).body;
 
 		final Matrix4 localA = new Matrix4();
 		final Matrix4 localB = new Matrix4();
@@ -186,71 +186,71 @@ public class RayPickRagdollTest extends BaseBulletTest {
 		btConeTwistConstraint coneC = null;
 
 		// PelvisSpine
-		localA.setFromEulerAngles(0, PI2, 0).trn(0, 0.15f, 0);
-		localB.setFromEulerAngles(0, PI2, 0).trn(0, -0.15f, 0);
+		localA.setFromEulerAnglesRad(0, PI2, 0).trn(0, 0.15f, 0);
+		localB.setFromEulerAnglesRad(0, PI2, 0).trn(0, -0.15f, 0);
 		constraints.add(hingeC = new btHingeConstraint(pelvis, spine, localA, localB));
 		hingeC.setLimit(-PI4, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(hingeC, true);
 
 		// SpineHead
-		localA.setFromEulerAngles(PI2, 0, 0).trn(0, 0.3f, 0);
-		localB.setFromEulerAngles(PI2, 0, 0).trn(0, -0.14f, 0);
+		localA.setFromEulerAnglesRad(PI2, 0, 0).trn(0, 0.3f, 0);
+		localB.setFromEulerAnglesRad(PI2, 0, 0).trn(0, -0.14f, 0);
 		constraints.add(coneC = new btConeTwistConstraint(spine, head, localA, localB));
 		coneC.setLimit(PI4, PI4, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(coneC, true);
 
 		// LeftHip
-		localA.setFromEulerAngles(-PI4 * 5f, 0, 0).trn(-0.18f, -0.1f, 0);
-		localB.setFromEulerAngles(-PI4 * 5f, 0, 0).trn(0, 0.225f, 0);
+		localA.setFromEulerAnglesRad(-PI4 * 5f, 0, 0).trn(-0.18f, -0.1f, 0);
+		localB.setFromEulerAnglesRad(-PI4 * 5f, 0, 0).trn(0, 0.225f, 0);
 		constraints.add(coneC = new btConeTwistConstraint(pelvis, leftupperleg, localA, localB));
 		coneC.setLimit(PI4, PI4, 0);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(coneC, true);
 
 		// LeftKnee
-		localA.setFromEulerAngles(0, PI2, 0).trn(0, -0.225f, 0);
-		localB.setFromEulerAngles(0, PI2, 0).trn(0, 0.185f, 0);
+		localA.setFromEulerAnglesRad(0, PI2, 0).trn(0, -0.225f, 0);
+		localB.setFromEulerAnglesRad(0, PI2, 0).trn(0, 0.185f, 0);
 		constraints.add(hingeC = new btHingeConstraint(leftupperleg, leftlowerleg, localA, localB));
 		hingeC.setLimit(0, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(hingeC, true);
 
 		// RightHip
-		localA.setFromEulerAngles(-PI4 * 5f, 0, 0).trn(0.18f, -0.1f, 0);
-		localB.setFromEulerAngles(-PI4 * 5f, 0, 0).trn(0, 0.225f, 0);
+		localA.setFromEulerAnglesRad(-PI4 * 5f, 0, 0).trn(0.18f, -0.1f, 0);
+		localB.setFromEulerAnglesRad(-PI4 * 5f, 0, 0).trn(0, 0.225f, 0);
 		constraints.add(coneC = new btConeTwistConstraint(pelvis, rightupperleg, localA, localB));
 		coneC.setLimit(PI4, PI4, 0);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(coneC, true);
 
 		// RightKnee
-		localA.setFromEulerAngles(0, PI2, 0).trn(0, -0.225f, 0);
-		localB.setFromEulerAngles(0, PI2, 0).trn(0, 0.185f, 0);
+		localA.setFromEulerAnglesRad(0, PI2, 0).trn(0, -0.225f, 0);
+		localB.setFromEulerAnglesRad(0, PI2, 0).trn(0, 0.185f, 0);
 		constraints.add(hingeC = new btHingeConstraint(rightupperleg, rightlowerleg, localA, localB));
 		hingeC.setLimit(0, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(hingeC, true);
 
 		// LeftShoulder
-		localA.setFromEulerAngles(PI, 0, 0).trn(-0.2f, 0.15f, 0);
-		localB.setFromEulerAngles(PI2, 0, 0).trn(0, -0.18f, 0);
+		localA.setFromEulerAnglesRad(PI, 0, 0).trn(-0.2f, 0.15f, 0);
+		localB.setFromEulerAnglesRad(PI2, 0, 0).trn(0, -0.18f, 0);
 		constraints.add(coneC = new btConeTwistConstraint(pelvis, leftupperarm, localA, localB));
 		coneC.setLimit(PI2, PI2, 0);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(coneC, true);
 
 		// LeftElbow
-		localA.setFromEulerAngles(0, PI2, 0).trn(0, 0.18f, 0);
-		localB.setFromEulerAngles(0, PI2, 0).trn(0, -0.14f, 0);
+		localA.setFromEulerAnglesRad(0, PI2, 0).trn(0, 0.18f, 0);
+		localB.setFromEulerAnglesRad(0, PI2, 0).trn(0, -0.14f, 0);
 		constraints.add(hingeC = new btHingeConstraint(leftupperarm, leftlowerarm, localA, localB));
 		hingeC.setLimit(0, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(hingeC, true);
 
 		// RightShoulder
-		localA.setFromEulerAngles(PI, 0, 0).trn(0.2f, 0.15f, 0);
-		localB.setFromEulerAngles(PI2, 0, 0).trn(0, -0.18f, 0);
+		localA.setFromEulerAnglesRad(PI, 0, 0).trn(0.2f, 0.15f, 0);
+		localB.setFromEulerAnglesRad(PI2, 0, 0).trn(0, -0.18f, 0);
 		constraints.add(coneC = new btConeTwistConstraint(pelvis, rightupperarm, localA, localB));
 		coneC.setLimit(PI2, PI2, 0);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(coneC, true);
 
 		// RightElbow
-		localA.setFromEulerAngles(0, PI2, 0).trn(0, 0.18f, 0);
-		localB.setFromEulerAngles(0, PI2, 0).trn(0, -0.14f, 0);
+		localA.setFromEulerAnglesRad(0, PI2, 0).trn(0, 0.18f, 0);
+		localB.setFromEulerAnglesRad(0, PI2, 0).trn(0, -0.14f, 0);
 		constraints.add(hingeC = new btHingeConstraint(rightupperarm, rightlowerarm, localA, localB));
 		hingeC.setLimit(0, PI2);
 		((btDynamicsWorld)world.collisionWorld).addConstraint(hingeC, true);

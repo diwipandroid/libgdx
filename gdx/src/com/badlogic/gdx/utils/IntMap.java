@@ -28,7 +28,7 @@ import com.badlogic.gdx.math.MathUtils;
  * depending on hash collisions. Load factors greater than 0.91 greatly increase the chances the map will have to rehash to the
  * next higher POT size.
  * @author Nathan Sweet */
-public class IntMap<V> {
+public class IntMap<V> implements Iterable<IntMap.Entry<V>> {
 	private static final int PRIME1 = 0xbe1f14b1;
 	private static final int PRIME2 = 0xb4b82e39;
 	private static final int PRIME3 = 0xced1c241;
@@ -423,6 +423,7 @@ public class IntMap<V> {
 	}
 
 	public void clear () {
+		if (size == 0) return;
 		int[] keyTable = this.keyTable;
 		V[] valueTable = this.valueTable;
 		for (int i = capacity + stashSize; i-- > 0;) {
@@ -501,7 +502,7 @@ public class IntMap<V> {
 		return notFound;
 	}
 
-	/** Increases the size of the backing array to acommodate the specified number of additional items. Useful before adding many
+	/** Increases the size of the backing array to accommodate the specified number of additional items. Useful before adding many
 	 * items to avoid multiple backing array resizes. */
 	public void ensureCapacity (int additionalCapacity) {
 		int sizeNeeded = size + additionalCapacity;
@@ -545,6 +546,60 @@ public class IntMap<V> {
 		return (h ^ h >>> hashShift) & mask;
 	}
 
+	public int hashCode () {
+		int h = 0;
+		if (hasZeroValue && zeroValue != null) {
+			h += zeroValue.hashCode();
+		}
+		int[] keyTable = this.keyTable;
+		V[] valueTable = this.valueTable;
+		for (int i = 0, n = capacity + stashSize; i < n; i++) {
+			int key = keyTable[i];
+			if (key != EMPTY) {
+				h += key * 31;
+
+				V value = valueTable[i];
+				if (value != null) {
+					h += value.hashCode();
+				}
+			}
+		}
+		return h;
+	}
+
+	public boolean equals (Object obj) {
+		if (obj == this) return true;
+		if (!(obj instanceof IntMap)) return false;
+		IntMap<V> other = (IntMap)obj;
+		if (other.size != size) return false;
+		if (other.hasZeroValue != hasZeroValue) return false;
+		if (hasZeroValue) {
+			if (other.zeroValue == null) {
+				if (zeroValue != null) return false;
+			} else {
+				if (!other.zeroValue.equals(zeroValue)) return false;
+			}
+		}
+		int[] keyTable = this.keyTable;
+		V[] valueTable = this.valueTable;
+		for (int i = 0, n = capacity + stashSize; i < n; i++) {
+			int key = keyTable[i];
+			if (key != EMPTY) {
+				V value = valueTable[i];
+				if (value == null) {
+					if (!other.containsKey(key) || other.get(key) != null) {
+						return false;
+					}
+				} else {
+					if (!value.equals(other.get(key))) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
 	public String toString () {
 		if (size == 0) return "[]";
 		StringBuilder buffer = new StringBuilder(32);
@@ -575,6 +630,10 @@ public class IntMap<V> {
 		}
 		buffer.append(']');
 		return buffer.toString();
+	}
+
+	public Iterator<Entry<V>> iterator () {
+		return entries();
 	}
 
 	/** Returns an iterator for the entries in the map. Remove is supported. Note that the same iterator instance is returned each
@@ -729,6 +788,10 @@ public class IntMap<V> {
 		public Iterator<Entry<V>> iterator () {
 			return this;
 		}
+
+		public void remove () {
+			super.remove();
+		}
 	}
 
 	static public class Values<V> extends MapIterator<V> implements Iterable<V>, Iterator<V> {
@@ -764,6 +827,10 @@ public class IntMap<V> {
 			while (hasNext)
 				array.add(next());
 			return array;
+		}
+
+		public void remove () {
+			super.remove();
 		}
 	}
 

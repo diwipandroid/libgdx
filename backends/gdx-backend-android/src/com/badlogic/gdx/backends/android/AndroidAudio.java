@@ -64,9 +64,8 @@ public final class AndroidAudio implements Audio {
 		synchronized (musics) {
 			for (AndroidMusic music : musics) {
 				if (music.isPlaying()) {
-					music.wasPlaying = true;
 					music.pause();
-
+					music.wasPlaying = true;					
 				} else
 					music.wasPlaying = false;
 			}
@@ -80,7 +79,7 @@ public final class AndroidAudio implements Audio {
 		}
 		synchronized (musics) {
 			for (int i = 0; i < musics.size(); i++) {
-				if (musics.get(i).wasPlaying == true) musics.get(i).play();
+				if (musics.get(i).wasPlaying) musics.get(i).play();
 			}
 		}
 		this.soundPool.autoResume();
@@ -107,7 +106,7 @@ public final class AndroidAudio implements Audio {
 
 		if (aHandle.type() == FileType.Internal) {
 			try {
-				AssetFileDescriptor descriptor = aHandle.assets.openFd(aHandle.path());
+				AssetFileDescriptor descriptor = aHandle.getAssetFileDescriptor();
 				mediaPlayer.setDataSource(descriptor.getFileDescriptor(), descriptor.getStartOffset(), descriptor.getLength());
 				descriptor.close();
 				mediaPlayer.prepare();
@@ -145,7 +144,7 @@ public final class AndroidAudio implements Audio {
 		AndroidFileHandle aHandle = (AndroidFileHandle)file;
 		if (aHandle.type() == FileType.Internal) {
 			try {
-				AssetFileDescriptor descriptor = aHandle.assets.openFd(aHandle.path());
+				AssetFileDescriptor descriptor = aHandle.getAssetFileDescriptor();
 				AndroidSound sound = new AndroidSound(soundPool, manager, soundPool.load(descriptor, 1));
 				descriptor.close();
 				return sound;

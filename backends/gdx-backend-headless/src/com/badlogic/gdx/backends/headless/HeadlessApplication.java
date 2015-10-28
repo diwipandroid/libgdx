@@ -50,6 +50,7 @@ public class HeadlessApplication implements Application {
 	protected final Array<Runnable> executedRunnables = new Array<Runnable>();
 	protected final Array<LifecycleListener> lifecycleListeners = new Array<LifecycleListener>();
 	protected int logLevel = LOG_INFO;
+	private String preferencesdir;
 	private final long renderInterval;
 
 	public HeadlessApplication(ApplicationListener listener) {
@@ -70,11 +71,14 @@ public class HeadlessApplication implements Application {
 		this.audio = new MockAudio();
 		this.input = new MockInput();
 
+		this.preferencesdir = config.preferencesDirectory;
+
 		Gdx.app = this;
 		Gdx.files = files;
 		Gdx.net = net;
 		Gdx.audio = audio;
 		Gdx.graphics = graphics;
+		Gdx.input = input;
 		
 		renderInterval = config.renderInterval > 0 ? (long)(config.renderInterval * 1000000000f) : (config.renderInterval < 0 ? -1 : 0);
 		
@@ -120,6 +124,7 @@ public class HeadlessApplication implements Application {
 					t = n + renderInterval;
 				
 				executeRunnables();
+				graphics.incrementFrameId();
 				listener.render();
 				graphics.updateTime();
 	
@@ -140,13 +145,13 @@ public class HeadlessApplication implements Application {
 
 	public boolean executeRunnables () {
 		synchronized (runnables) {
-			executedRunnables.addAll(runnables);
+			for (int i = runnables.size - 1; i >= 0; i--)
+				executedRunnables.add(runnables.get(i));
 			runnables.clear();
 		}
 		if (executedRunnables.size == 0) return false;
-		for (int i = 0; i < executedRunnables.size; i++)
-			executedRunnables.get(i).run();
-		executedRunnables.clear();
+		for (int i = executedRunnables.size - 1; i >= 0; i--)
+			executedRunnables.removeIndex(i).run();
 		return true;
 	}
 
@@ -157,20 +162,17 @@ public class HeadlessApplication implements Application {
 
 	@Override
 	public Graphics getGraphics() {
-		// no graphics
-		return null;
+		return graphics;
 	}
 
 	@Override
 	public Audio getAudio() {
-		// no audio
-		return null;
+		return audio;
 	}
 
 	@Override
 	public Input getInput() {
-		// no input
-		return null;
+		return input;
 	}
 
 	@Override
@@ -210,7 +212,7 @@ public class HeadlessApplication implements Application {
 		if (preferences.containsKey(name)) {
 			return preferences.get(name);
 		} else {
-			Preferences prefs = new HeadlessPreferences(name, ".prefs/");
+			Preferences prefs = new HeadlessPreferences(name, this.preferencesdir);
 			preferences.put(name, prefs);
 			return prefs;
 		}

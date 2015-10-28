@@ -53,7 +53,7 @@ public class ReflectionTest extends GdxTest {
 			Vector2 fromCopyConstructor = (Vector2)copyConstroctor.newInstance(fromDefaultConstructor);
 			println("From copy constructor: " + fromCopyConstructor);
 
-			Method mMul = ClassReflection.getMethod(Vector2.class, "mul", float.class);
+			Method mMul = ClassReflection.getMethod(Vector2.class, "scl", float.class);
 			println("Multiplied by 2; " + mMul.invoke(fromCopyConstructor, 2));
 
 			Method mNor = ClassReflection.getMethod(Vector2.class, "nor");
@@ -96,7 +96,7 @@ public class ReflectionTest extends GdxTest {
 	public void render () {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		batch.begin();
-		font.drawMultiLine(batch, message, 20, Gdx.graphics.getHeight() - 20);
+		font.draw(batch, message, 20, Gdx.graphics.getHeight() - 20);
 		batch.end();
 	}
 

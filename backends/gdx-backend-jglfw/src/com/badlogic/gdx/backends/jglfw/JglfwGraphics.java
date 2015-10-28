@@ -22,8 +22,10 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Cursor;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.jglfw.GlfwVideoMode;
@@ -34,6 +36,10 @@ import java.awt.Toolkit;
 /** An implementation of the {@link Graphics} interface based on GLFW.
  * @author Nathan Sweet */
 public class JglfwGraphics implements Graphics {
+	static final boolean isMac = System.getProperty("os.name").contains("OS X");
+	static final boolean isWindows = System.getProperty("os.name").contains("Windows");
+	static final boolean isLinux = System.getProperty("os.name").contains("Linux");
+
 	static int glMajorVersion, glMinorVersion;
 
 	long window;
@@ -49,6 +55,7 @@ public class JglfwGraphics implements Graphics {
 	private volatile boolean isContinuous = true, renderRequested;
 	volatile boolean foreground, minimized;
 
+	private long frameId = -1;
 	private float deltaTime;
 	private long frameStart, lastTime = -1;
 	private int frames, fps;
@@ -151,10 +158,13 @@ public class JglfwGraphics implements Graphics {
 			frameStart = time;
 		}
 		frames++;
+		frameId++;
 	}
 
 	void sizeChanged (int width, int height) {
-		glfwShowWindow(window); // This is required to refresh the NSOpenGLContext on OSX!
+		if (isMac) {
+			glfwShowWindow(window); // This is required to refresh the NSOpenGLContext on OSX!
+		}
 		width = Math.max(1, width);
 		height = Math.max(1, height);
 		this.width = width;
@@ -184,6 +194,10 @@ public class JglfwGraphics implements Graphics {
 
 	public int getHeight () {
 		return height;
+	}
+
+	public long getFrameId () {
+		return frameId;
 	}
 
 	public float getDeltaTime () {
@@ -390,5 +404,14 @@ public class JglfwGraphics implements Graphics {
 	@Override
 	public GL30 getGL30 () {
 		return null;
+	}
+	
+	@Override
+	public Cursor newCursor (Pixmap pixmap, int xHotspot, int yHotspot) {
+		return null;
+	}
+
+	@Override
+	public void setCursor (Cursor cursor) {
 	}
 }
