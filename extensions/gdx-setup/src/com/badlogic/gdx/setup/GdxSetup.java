@@ -63,7 +63,7 @@ public class GdxSetup {
 		int[] targetToolVersion = convertTools(DependencyBank.buildToolsVersion);
 		if (compareVersions(targetToolVersion, localToolVersion)) {
 			int value = JOptionPane.showConfirmDialog(null,
-				"You have a more recent version of android build tools than the recommended.\nDo you want to use this version?",
+				"You have a more recent version of android build tools than the recommended.\nDo you want to use your more recent version?",
 				"Warning!", JOptionPane.YES_NO_OPTION);
 			if (value != 0) {
 				JOptionPane.showMessageDialog(null, "Using build tools: " + DependencyBank.buildToolsVersion);
@@ -81,7 +81,7 @@ public class GdxSetup {
 		int newestLocalApi = getLatestApi(apis);
 		if (newestLocalApi > Integer.valueOf(DependencyBank.androidAPILevel)) {
 			int value = JOptionPane.showConfirmDialog(null,
-				"You have a more recent Android API than the recommended.\nDo you want to use this version?", "Warning!",
+				"You have a more recent Android API than the recommended.\nDo you want to use your more recent version?", "Warning!",
 				JOptionPane.YES_NO_OPTION);
 			if (value != 0) {
 				JOptionPane.showMessageDialog(null, "Using API level: " + DependencyBank.androidAPILevel);
@@ -278,7 +278,7 @@ public class GdxSetup {
 			project.files.add(new ProjectFile("android/res/drawable-mdpi/ic_launcher.png", false));
 			project.files.add(new ProjectFile("android/res/drawable-xhdpi/ic_launcher.png", false));
 			project.files.add(new ProjectFile("android/res/drawable-xxhdpi/ic_launcher.png", false));
-			project.files.add(new ProjectFile("android/src/AndroidLauncher", "android/src/" + packageDir + "/android/AndroidLauncher.java", true));
+			project.files.add(new ProjectFile("android/src/AndroidLauncher", "android/src/" + packageDir + "/AndroidLauncher.java", true));
 			project.files.add(new ProjectFile("android/AndroidManifest.xml"));
 			project.files.add(new ProjectFile("android/build.gradle", true));
 			project.files.add(new ProjectFile("android/ic_launcher-web.png", false));
@@ -323,6 +323,7 @@ public class GdxSetup {
 
 		Map<String, String> values = new HashMap<String, String>();
 		values.put("%APP_NAME%", appName);
+		values.put("%APP_NAME_ESCAPED%", appName.replace("'", "\\'"));
 		values.put("%PACKAGE%", packageName);
 		values.put("%PACKAGE_DIR%", packageDir);
 		values.put("%MAIN_CLASS%", mainClass);

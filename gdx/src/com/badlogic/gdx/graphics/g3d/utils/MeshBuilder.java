@@ -88,6 +88,10 @@ public class MeshBuilder implements MeshPartBuilder {
 	private int posSize;
 	/** The offset within an vertex to normal, or -1 if not available */
 	private int norOffset;
+	/** The offset within a vertex to binormal, or -1 if not available */
+	private int biNorOffset;
+	/** The offset within a vertex to tangent, or -1 if not available */
+	private int tangentOffset;
 	/** The offset within an vertex to color, or -1 if not available */
 	private int colOffset;
 	/** The size (in number of floats) of the color attribute */
@@ -162,6 +166,7 @@ public class MeshBuilder implements MeshPartBuilder {
 		this.indices.clear();
 		this.parts.clear();
 		this.vindex = 0;
+		this.lastIndex = -1;
 		this.istart = 0;
 		this.part = null;
 		this.stride = attributes.vertexSize / 4;
@@ -172,6 +177,10 @@ public class MeshBuilder implements MeshPartBuilder {
 		posSize = a.numComponents;
 		a = attributes.findByUsage(Usage.Normal);
 		norOffset = a == null ? -1 : a.offset / 4;
+		a = attributes.findByUsage(Usage.BiNormal);
+		biNorOffset = a == null ? -1 : a.offset / 4;
+		a = attributes.findByUsage(Usage.Tangent);
+		tangentOffset = a == null ? -1 : a.offset / 4;
 		a = attributes.findByUsage(Usage.ColorUnpacked);
 		colOffset = a == null ? -1 : a.offset / 4;
 		colSize = a == null ? 0 : a.numComponents;
@@ -268,6 +277,7 @@ public class MeshBuilder implements MeshPartBuilder {
 		this.indices.clear();
 		this.parts.clear();
 		this.vindex = 0;
+		this.lastIndex = -1;
 		this.istart = 0;
 		this.part = null;
 	}
@@ -559,6 +569,8 @@ public class MeshBuilder implements MeshPartBuilder {
 		if (vertexTransformationEnabled) {
 			transformPosition(vertices.items, o + posOffset, posSize, positionTransform);
 			if (norOffset >= 0) transformNormal(vertices.items, o + norOffset, 3, normalTransform);
+			if (biNorOffset >= 0) transformNormal(vertices.items, o + biNorOffset, 3, normalTransform);
+			if (tangentOffset >= 0) transformNormal(vertices.items, o + tangentOffset, 3, normalTransform);
 		}
 		
 		final float x = vertices.items[o+posOffset];
@@ -1316,7 +1328,8 @@ public class MeshBuilder implements MeshPartBuilder {
 
 	private static IntIntMap indicesMap = null;
 
-	private void addMesh (float[] vertices, short[] indices, int indexOffset, int numIndices) {
+	@Override
+	public void addMesh (float[] vertices, short[] indices, int indexOffset, int numIndices) {
 		if (indicesMap == null)
 			indicesMap = new IntIntMap(numIndices);
 		else {
@@ -1324,7 +1337,8 @@ public class MeshBuilder implements MeshPartBuilder {
 			indicesMap.ensureCapacity(numIndices);
 		}
 		ensureIndices(numIndices);
-		ensureVertices(vertices.length < numIndices ? vertices.length : numIndices); // a bit naive perhaps?
+		final int numVertices = vertices.length / stride;
+		ensureVertices(numVertices < numIndices ? numVertices : numIndices);
 		for (int i = 0; i < numIndices; i++) {
 			final int sidx = indices[i];
 			int didx = indicesMap.get(sidx, -1);
@@ -1334,5 +1348,19 @@ public class MeshBuilder implements MeshPartBuilder {
 			}
 			index((short)didx);
 		}
+	}
+	
+	@Override
+	public void addMesh (float[] vertices, short[] indices) {
+		final short offset = (short)(lastIndex + 1);
+		
+		final int numVertices = vertices.length / stride;
+		ensureVertices(numVertices);
+		for (int v = 0; v < vertices.length; v += stride)
+			addVertex(vertices, v);
+		
+		ensureIndices(indices.length);
+		for (int i = 0; i < indices.length; ++i)
+			index((short)(indices[i] + offset));
 	}
 }
